@@ -1,4 +1,4 @@
--- Copyright (c) 2006-2010
+-- Copyright (c) 2006-2012
 --         The President and Fellows of Harvard College.
 --
 -- Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 --------------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Loc
--- Copyright   :  (c) Harvard University 2006-2010
+-- Copyright   :  (c) Harvard University 2006-2012
 -- License     :  BSD-style
 -- Maintainer  :  mainland@eecs.harvard.edu
 --
@@ -81,9 +81,9 @@ data Pos =  -- | file name, line, column and character offset
                  {-# UNPACK #-} !Int
                  {-# UNPACK #-} !Int
 #ifdef __GLASGOW_HASKELL__
-  deriving (Eq, Data, Typeable)
+  deriving (Eq, Show, Data, Typeable)
 #else
-  deriving (Eq,Ord,Show)
+  deriving (Eq, Show)
 #endif
 
 instance Ord Pos where
@@ -131,9 +131,9 @@ data Loc =  NoLoc
             Loc  {-# UNPACK #-} !Pos
                  {-# UNPACK #-} !Pos
 #ifdef __GLASGOW_HASKELL__
-  deriving (Eq, Data, Typeable)
+  deriving (Eq, Show, Data, Typeable)
 #else
-  deriving (Eq,Ord,Show)
+  deriving (Eq, Show)
 #endif
 
 -- | Starting position of the location.
