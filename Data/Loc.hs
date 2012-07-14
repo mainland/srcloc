@@ -50,18 +50,19 @@ module Data.Loc (
     Loc(..),
     locStart,
     locEnd,
-    noLoc,
+
+    mergeLoc,
+    (<-->),
 
     SrcLoc(..),
-    noSrcLoc,
+    srclocOf,
+    srcspan,
 
-    locOf,
+    IsLocation(..),
+    noLoc,
 
-    (<-->),
-    mergeLoc,
-
-    Location(..),
     Located(..),
+
     Relocatable(..),
 
     L(..),
@@ -71,15 +72,13 @@ module Data.Loc (
 #ifdef __GLASGOW_HASKELL__
 import Data.Generics (Data(..),Typeable(..))
 #endif
-import Data.List (foldl1')
-import Data.Symbol
+import Data.List (foldl')
 
 -- | Position type.
-data Pos =  -- | file name, line, column and character offset
-            Pos  !Symbol
-                 {-# UNPACK #-} !Int
-                 {-# UNPACK #-} !Int
-                 {-# UNPACK #-} !Int
+data Pos = Pos !String             -- ^ File
+               {-# UNPACK #-} !Int -- ^ Line
+               {-# UNPACK #-} !Int -- ^ Column
+               {-# UNPACK #-} !Int -- ^ Character offset
 #ifdef __GLASGOW_HASKELL__
   deriving (Eq, Show, Data, Typeable)
 #else
@@ -92,7 +91,7 @@ instance Ord Pos where
 
 -- | Position file.
 posFile :: Pos -> String
-posFile (Pos f _ _ _) = unintern f
+posFile (Pos f _ _ _) = f
 
 -- | Position line.
 posLine :: Pos -> Int
@@ -116,10 +115,10 @@ startCoff :: Int
 startCoff = 0
 
 startPos :: String -> Pos
-startPos f = Pos (intern f) startLine startCol startCoff
+startPos f = Pos f startLine startCol startCoff
 
 linePos :: String -> Int -> Pos
-linePos f l = Pos (intern f) l startCol startCoff
+linePos f l = Pos f l startCol startCoff
 
 advancePos :: Pos -> Char -> Pos
 advancePos (Pos f l _ coff) '\n' = Pos f (l+1) startCol (coff + 1)
@@ -146,9 +145,17 @@ locEnd :: Loc -> Loc
 locEnd  NoLoc      = NoLoc
 locEnd  (Loc _ p)  = Loc p p
 
--- | No location.
-noLoc :: Location a => a
-noLoc = fromLoc NoLoc
+-- | Calculate a 'Loc' with (minimal) span that includes both 'Loc' values.
+mergeLoc :: Loc -> Loc -> Loc
+mergeLoc  NoLoc        l            = l
+mergeLoc  l            NoLoc        = l
+mergeLoc  (Loc b1 e1)  (Loc b2 e2)  = Loc (min b1 b2) (max e1 e2)
+
+-- | Merge the locations of two 'Located' values.
+(<-->) :: (Located a, Located b) => a -> b -> Loc
+x <--> y = mergeLoc (locOf x) (locOf y)
+
+infixl 6 <-->
 
 -- | Source location type. Source location are all equal, which allows AST nodes
 -- to be compared modulo location information.
@@ -161,56 +168,58 @@ instance Eq SrcLoc where
 instance Ord SrcLoc where
     compare _ _ = EQ
 
-noSrcLoc :: SrcLoc
-noSrcLoc = SrcLoc NoLoc
+-- | The 'SrcLoc' of a 'Located' value.
+srclocOf :: Located a => a -> SrcLoc
+srclocOf = fromLoc . locOf
 
-locOf :: (Located a, Location b) => a -> b
-locOf = fromLoc . getLoc
+-- | A 'SrcLoc' with (minimal) span that includes two 'Located' values.
+srcspan :: (Located a, Located b) => a -> b -> SrcLoc
+x `srcspan` y = SrcLoc (mergeLoc (locOf x) (locOf y))
 
-infixl 6 <-->
-
-(<-->)  ::  (Located a, Located b, Location c)
-        =>  a -> b -> c
-x <--> y = fromLoc $ mergeLoc (getLoc x) (getLoc y)
-
-mergeLoc :: Loc -> Loc -> Loc
-mergeLoc  NoLoc        l            = l
-mergeLoc  l            NoLoc        = l
-mergeLoc  (Loc b1 e1)  (Loc b2 e2)  = Loc (min b1 b2) (max e1 e2)
+infixl 6 `srcspan`
 
 -- | Locations
-class Location a where
+class IsLocation a where
     fromLoc :: Loc -> a
+    fromPos :: Pos -> a
+    fromPos p = fromLoc (Loc p p)
 
-instance Location Loc where
+instance IsLocation Loc where
     fromLoc = id
 
-instance Location SrcLoc where
+instance IsLocation SrcLoc where
     fromLoc = SrcLoc
+
+-- | No location.
+noLoc :: IsLocation a => a
+noLoc = fromLoc NoLoc
 
 -- | Located values have a location.
 class Located a where
-    getLoc :: a -> Loc
+    locOf :: a -> Loc
+
+    locOfList :: [a] -> Loc
+    locOfList xs = foldl' mergeLoc NoLoc (map locOf xs)
 
 instance Located a => Located [a] where
-    getLoc [] = NoLoc
-    getLoc xs = foldl1' mergeLoc (map getLoc xs)
+    locOf = locOfList
 
 instance Located Pos where
-    getLoc p = Loc p p
+    locOf p = Loc p p
 
 instance Located Loc where
-    getLoc = id
+    locOf = id
 
 instance Located SrcLoc where
-    getLoc (SrcLoc loc) = loc
+    locOf (SrcLoc loc) = loc
 
 -- | Values that can be relocated
 class Relocatable a where
-    reloc :: Located b => b -> a -> a
+    reloc :: Loc -> a -> a
 
--- | Locations are ignored when performing comparisons.
-data L x = L Loc x
+-- | An 'L a' is an 'a' with an associated 'Loc', but this location is ignored
+-- when performing comparisons.
+data L a = L Loc a
 
 unLoc :: L a -> a
 unLoc (L _ a) = a
@@ -221,8 +230,11 @@ instance Eq x => Eq (L x) where
 instance Ord x => Ord (L x) where
     compare (L _ x) (L _ y) = compare x y
 
-instance Located (L a) where
-    getLoc (L loc _) = loc
-
 instance Show x => Show (L x) where
     show (L _ x) = show x
+
+instance Located (L a) where
+    locOf (L loc _) = loc
+
+instance Relocatable (L a) where
+    reloc loc (L _ x) = L loc x
