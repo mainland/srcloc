@@ -204,6 +204,10 @@ class Located a where
 instance Located a => Located [a] where
     locOf = locOfList
 
+instance Located a => Located (Maybe a) where
+    locOf Nothing   = NoLoc
+    locOf (Just x)  = locOf x
+
 instance Located Pos where
     locOf p = Loc p p
 
