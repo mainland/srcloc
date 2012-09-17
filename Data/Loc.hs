@@ -75,10 +75,11 @@ import Data.Generics (Data(..),Typeable(..))
 import Data.List (foldl')
 
 -- | Position type.
-data Pos = Pos !String             -- ^ File
-               {-# UNPACK #-} !Int -- ^ Line
-               {-# UNPACK #-} !Int -- ^ Column
-               {-# UNPACK #-} !Int -- ^ Character offset
+data Pos = -- | Source file name, line, column, and character offset
+           Pos !String
+               {-# UNPACK #-} !Int
+               {-# UNPACK #-} !Int
+               {-# UNPACK #-} !Int
 #ifdef __GLASGOW_HASKELL__
   deriving (Eq, Show, Data, Typeable)
 #else
