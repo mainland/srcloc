@@ -22,7 +22,6 @@ module Data.Loc (
     locStart,
     locEnd,
 
-    mergeLoc,
     (<-->),
 
     SrcLoc(..),
@@ -44,6 +43,7 @@ module Data.Loc (
 import Data.Generics (Data(..),Typeable(..))
 #endif
 import Data.List (foldl')
+import Data.Monoid (Monoid(..))
 
 -- | Position type.
 data Pos = -- | Source file name, line, column, and character offset
@@ -117,15 +117,16 @@ locEnd :: Loc -> Loc
 locEnd  NoLoc      = NoLoc
 locEnd  (Loc _ p)  = Loc p p
 
--- | Calculate a 'Loc' with (minimal) span that includes both 'Loc' values.
-mergeLoc :: Loc -> Loc -> Loc
-mergeLoc  NoLoc        l            = l
-mergeLoc  l            NoLoc        = l
-mergeLoc  (Loc b1 e1)  (Loc b2 e2)  = Loc (min b1 b2) (max e1 e2)
+instance Monoid Loc where
+    mempty = NoLoc
+
+    NoLoc     `mappend` l         = l
+    l         `mappend` NoLoc     = l
+    Loc b1 e1 `mappend` Loc b2 e2 = Loc (min b1 b2) (max e1 e2)
 
 -- | Merge the locations of two 'Located' values.
 (<-->) :: (Located a, Located b) => a -> b -> Loc
-x <--> y = mergeLoc (locOf x) (locOf y)
+x <--> y = locOf x `mappend` locOf y
 
 infixl 6 <-->
 
@@ -146,7 +147,7 @@ srclocOf = fromLoc . locOf
 
 -- | A 'SrcLoc' with (minimal) span that includes two 'Located' values.
 srcspan :: (Located a, Located b) => a -> b -> SrcLoc
-x `srcspan` y = SrcLoc (mergeLoc (locOf x) (locOf y))
+x `srcspan` y = SrcLoc (locOf x `mappend` locOf y)
 
 infixl 6 `srcspan`
 
@@ -171,7 +172,7 @@ class Located a where
     locOf :: a -> Loc
 
     locOfList :: [a] -> Loc
-    locOfList xs = foldl' mergeLoc NoLoc (map locOf xs)
+    locOfList xs = mconcat (map locOf xs)
 
 instance Located a => Located [a] where
     locOf = locOfList
