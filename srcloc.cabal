@@ -19,8 +19,8 @@ library
     Data.Loc
 
   build-depends:
-    base >= 4 && < 5,
-    syb >= 0.1 && < 0.4
+    base >= 4   && < 5,
+    syb  >= 0.1 && < 0.4
 
 source-repository head
   type:     git
