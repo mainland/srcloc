@@ -40,7 +40,8 @@ module Data.Loc (
   ) where
 
 #ifdef __GLASGOW_HASKELL__
-import Data.Generics (Data(..),Typeable(..))
+import Data.Data (Data(..))
+import Data.Typeable (Typeable(..))
 #endif
 import Data.List (foldl')
 import Data.Monoid (Monoid(..))
