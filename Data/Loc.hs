@@ -141,6 +141,9 @@ instance Eq SrcLoc where
 instance Ord SrcLoc where
     compare _ _ = EQ
 
+instance Show SrcLoc where
+    showsPrec _ _ = id
+
 -- | The 'SrcLoc' of a 'Located' value.
 srclocOf :: Located a => a -> SrcLoc
 srclocOf = fromLoc . locOf
