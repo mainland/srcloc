@@ -53,9 +53,9 @@ data Pos = -- | Source file name, line, column, and character offset
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
 #ifdef __GLASGOW_HASKELL__
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Eq, Read, Show, Data, Typeable)
 #else
-  deriving (Eq, Show)
+  deriving (Eq, Read, Show)
 #endif
 
 instance Ord Pos where
@@ -103,9 +103,9 @@ data Loc =  NoLoc
             Loc  {-# UNPACK #-} !Pos
                  {-# UNPACK #-} !Pos
 #ifdef __GLASGOW_HASKELL__
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Eq, Read, Show, Data, Typeable)
 #else
-  deriving (Eq, Show)
+  deriving (Eq, Read, Show)
 #endif
 
 -- | Starting position of the location.
@@ -143,7 +143,22 @@ instance Ord SrcLoc where
     compare _ _ = EQ
 
 instance Show SrcLoc where
-    showsPrec _ _ = id
+    showsPrec _ _ = showString "noLoc"
+
+instance Read SrcLoc where
+    readsPrec p s =
+        readParen False
+          (\s -> [(SrcLoc NoLoc, s') |
+                  ("noLoc", s') <- lex s])
+          s
+        ++
+        readParen (p > app_prec)
+          (\s -> [(SrcLoc l, s'') |
+                  ("SrcLoc", s') <- lex s,
+                  (l, s'') <- readsPrec (app_prec+1) s'])
+          s
+      where
+        app_prec = 10
 
 -- | The 'SrcLoc' of a 'Located' value.
 srclocOf :: Located a => a -> SrcLoc
