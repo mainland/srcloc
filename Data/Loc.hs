@@ -1,12 +1,12 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+
 -- |
 -- Module      :  Data.Loc
 -- Copyright   :  (c) Harvard University 2006-2011
---                (c) Geoffrey Mainland 2011-2012
+--                (c) Geoffrey Mainland 2011-2014
 -- License     :  BSD-style
--- Maintainer  :  mainland@eecs.harvard.edu
-
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+-- Maintainer  :  Geoffrey Mainland <mainland@cs.drexel.edu>
 
 module Data.Loc (
     Pos(..),

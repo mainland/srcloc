@@ -1,14 +1,14 @@
 name:           srcloc
-version:        0.4.0
+version:        0.4.1
 cabal-version:  >= 1.6
 license:        BSD3
 license-file:   LICENSE
 copyright:      (c) 2006-2011 Harvard University
-                (c) 2011-2012 Geoffrey Mainland
-author:         Geoffrey Mainland <mainland@eecs.harvard.edu>
-maintainer:     mainland@eecs.harvard.edu
+                (c) 2011-2014 Geoffrey Mainland
+author:         Geoffrey Mainland <mainland@cs.drexel.edu>
+maintainer:     Geoffrey Mainland <mainland@cs.drexel.edu>
 stability:      alpha
-homepage:       http://www.eecs.harvard.edu/~mainland/
+homepage:       http://www.cs.drexel.edu/~mainland/
 category:       Data
 synopsis:       Data types for managing source code locations.
 description:    Data types for managing source code locations.
