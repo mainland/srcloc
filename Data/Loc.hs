@@ -48,6 +48,9 @@ import Data.Monoid (Monoid(..))
 
 -- | Position type.
 data Pos = -- | Source file name, line, column, and character offset
+           --
+           -- Line numbering starts at 1, column and character offsets
+           -- start at 0.
            Pos !String
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
