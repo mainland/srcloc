@@ -17,12 +17,17 @@ module Data.Loc (
     startPos,
     linePos,
     advancePos,
+    displayPos0,
+    displayPos1,
 
     Loc(..),
     locStart,
     locEnd,
 
     (<-->),
+
+    displayLoc0,
+    displayLoc1,
 
     SrcLoc(..),
     srclocOf,
@@ -237,3 +242,53 @@ instance Located (L a) where
 
 instance Relocatable (L a) where
     reloc loc (L _ x) = L loc x
+
+-- | Format the position in a human-readable way.
+--
+-- Display the column number as starting from 0.
+displayPos0 :: Pos -> String
+displayPos0 p = displayLocBase 0 (Loc p p)
+
+-- | Format the position in a human-readable way.
+--
+-- Display the column number as starting from 1.
+displayPos1 :: Pos -> String
+displayPos1 p = displayLocBase 1 (Loc p p)
+
+-- | Format the location in a human-readable way.
+--
+-- Display the column numbers as starting from 0.
+displayLoc0 :: Loc -> String
+displayLoc0 = displayLocBase 0
+
+-- | Format the location in a human-readable way.
+--
+-- Display the column numbers as starting from 1.
+displayLoc1 :: Loc -> String
+displayLoc1 = displayLocBase 1
+
+-- | Internal function that takes the base (0 or 1) as a parameter
+displayLocBase
+  :: Int -- ^ base (0 or 1)
+  -> Loc
+  -> String
+displayLocBase base (Loc p1@(Pos src line1 col1 _) (Pos _ line2 col2 _))
+  | (line1, col1) == (line2, col2) =
+      -- filename.txt:2:3
+      src ++ (colon . shows line1 . colon . shows (col1+base)) ""
+  | line1 == line2 =
+      -- filename.txt:2:3-5
+      src ++
+        (colon . shows line1 .
+         colon . shows (col1+base) .
+         dash  . shows (col2+base)) ""
+  | otherwise =
+      -- filename.txt:2:3-4:5
+      src ++
+        (colon . shows line1 .
+         colon . shows (col1+base) .
+         dash  . shows line2 .
+         colon . shows (col2+base)) ""
+  where
+    colon = (':' :)
+    dash  = ('-' :)
