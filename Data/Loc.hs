@@ -17,12 +17,17 @@ module Data.Loc (
     startPos,
     linePos,
     advancePos,
+    displayPos,
+    displaySPos,
 
     Loc(..),
     locStart,
     locEnd,
 
     (<-->),
+
+    displayLoc,
+    displaySLoc,
 
     SrcLoc(..),
     srclocOf,
@@ -248,3 +253,40 @@ instance Located (L a) where
 
 instance Relocatable (L a) where
     reloc loc (L _ x) = L loc x
+
+-- | Format a position in a human-readable way, returning an ordinary
+-- 'String'.
+displayPos :: Pos -> String
+displayPos p = displayLoc (Loc p p)
+
+-- | Format a position in a human-readable way.
+displaySPos :: Pos -> ShowS
+displaySPos p = displaySLoc (Loc p p)
+
+-- | Format a location in a human-readable way, returning an ordinary
+-- 'String'.
+displayLoc :: Loc -> String
+displayLoc loc = displaySLoc loc ""
+
+-- | Format a location in a human-readable way.
+displaySLoc :: Loc -> ShowS
+displaySLoc (Loc p1@(Pos src line1 col1 _) (Pos _ line2 col2 _))
+  | (line1, col1) == (line2, col2) =
+      -- filename.txt:2:3
+      showString src . colon . shows line1 . colon . shows col1
+  | line1 == line2 =
+      -- filename.txt:2:3-5
+      showString src .
+      colon . shows line1 .
+      colon . shows col1 .
+      dash  . shows col2
+  | otherwise =
+      -- filename.txt:2:3-4:5
+      showString src .
+      colon . shows line1 .
+      colon . shows col1 .
+      dash  . shows line2 .
+      colon . shows col2
+  where
+    colon = (':' :)
+    dash  = ('-' :)
