@@ -47,8 +47,11 @@ import Data.List (foldl')
 import Data.Monoid (Monoid(..))
 
 -- | Position type.
-data Pos = -- | Source file name, line, column, and character offset
-           Pos !String
+data Pos = -- | Source file name, line, column, and character offset.
+           --
+           -- Line numbering starts at 1, column offset starts at 1, and
+           -- character offset starts at 0.
+           Pos !FilePath
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
@@ -63,7 +66,7 @@ instance Ord Pos where
         compare (f1, l1, c1) (f2, l2, c2)
 
 -- | Position file.
-posFile :: Pos -> String
+posFile :: Pos -> FilePath
 posFile (Pos f _ _ _) = f
 
 -- | Position line.
@@ -78,21 +81,31 @@ posCol (Pos _ _ c _) = c
 posCoff :: Pos -> Int
 posCoff (Pos _ _ _ coff) = coff
 
+-- | Starting position for given file.
+startPos :: FilePath -> Pos
+startPos f = Pos f startLine startCol startCoff
+
 startLine :: Int
 startLine = 1
 
 startCol :: Int
-startCol = 0
+startCol = 1
 
 startCoff :: Int
 startCoff = 0
 
-startPos :: String -> Pos
-startPos f = Pos f startLine startCol startCoff
-
-linePos :: String -> Int -> Pos
+-- | Position corresponding to given file and line.
+--
+-- Note that the associated character offset is set to 0.
+linePos :: FilePath -> Int -> Pos
 linePos f l = Pos f l startCol startCoff
 
+-- | Advance a position by a single character. Newlines increment the line
+-- number, tabs increase the position column following a tab stop width of 8,
+-- and all other characters increase the position column by one. All characters,
+-- including newlines and tabs, increase the character offset by 1.
+--
+-- Note that 'advancePos' assumes UNIX-style newlines.
 advancePos :: Pos -> Char -> Pos
 advancePos (Pos f l _ coff) '\n' = Pos f (l+1) startCol              (coff + 1)
 advancePos (Pos f l c coff) '\t' = Pos f l     (8*((c + 8) `div` 8)) (coff + 1)
@@ -214,7 +227,7 @@ instance Located SrcLoc where
 class Relocatable a where
     reloc :: Loc -> a -> a
 
--- | An 'L a' is an 'a' with an associated 'Loc', but this location is ignored
+-- | A value of type @L a@ is a value of type @a@ with an associated 'Loc', but this location is ignored
 -- when performing comparisons.
 data L a = L Loc a
 
