@@ -112,9 +112,10 @@ linePos f l = Pos f l startCol startCoff
 --
 -- Note that 'advancePos' assumes UNIX-style newlines.
 advancePos :: Pos -> Char -> Pos
-advancePos (Pos f l _ coff) '\n' = Pos f (l+1) startCol              (coff + 1)
-advancePos (Pos f l c coff) '\t' = Pos f l     (8*((c + 8) `div` 8)) (coff + 1)
-advancePos (Pos f l c coff) _    = Pos f l     (c + 1)               (coff + 1)
+advancePos (Pos f l _ coff) '\n' = Pos f (l+1) startCol     (coff + 1)
+advancePos (Pos f l c coff) '\t' = Pos f l     nextTabStop  (coff + 1)
+  where nextTabStop = ((c+7) `div` 8) * 8 + 1
+advancePos (Pos f l c coff) _    = Pos f l     (c + 1)      (coff + 1)
 
 -- | Location type, consisting of a beginning position and an end position.
 data Loc =  NoLoc
