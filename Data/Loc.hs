@@ -271,6 +271,9 @@ displayLoc loc = displaySLoc loc ""
 
 -- | Format a location in a human-readable way.
 displaySLoc :: Loc -> ShowS
+displaySLoc NoLoc =
+    showString "<no location>"
+
 displaySLoc (Loc p1@(Pos src line1 col1 _) (Pos _ line2 col2 _))
   | (line1, col1) == (line2, col2) =
       -- filename.txt:2:3
