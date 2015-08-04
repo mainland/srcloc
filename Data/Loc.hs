@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- |
 -- Module      :  Data.Loc
@@ -144,7 +146,7 @@ infixl 6 <-->
 -- | Source location type. Source location are all equal, which allows AST nodes
 -- to be compared modulo location information.
 newtype SrcLoc = SrcLoc Loc
-  deriving (Data, Typeable)
+  deriving (Monoid, Data, Typeable)
 
 instance Eq SrcLoc where
     _ == _ = True
@@ -226,6 +228,7 @@ class Relocatable a where
 -- | A value of type @L a@ is a value of type @a@ with an associated 'Loc', but this location is ignored
 -- when performing comparisons.
 data L a = L Loc a
+  deriving (Functor, Data, Typeable)
 
 unLoc :: L a -> a
 unLoc (L _ a) = a
