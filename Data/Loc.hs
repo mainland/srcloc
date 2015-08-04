@@ -4,7 +4,7 @@
 -- |
 -- Module      :  Data.Loc
 -- Copyright   :  (c) Harvard University 2006-2011
---                (c) Geoffrey Mainland 2011-2014
+--                (c) Geoffrey Mainland 2011-2015
 -- License     :  BSD-style
 -- Maintainer  :  Geoffrey Mainland <mainland@cs.drexel.edu>
 
@@ -44,10 +44,8 @@ module Data.Loc (
     unLoc
   ) where
 
-#ifdef __GLASGOW_HASKELL__
 import Data.Data (Data(..))
 import Data.Typeable (Typeable(..))
-#endif
 import Data.List (foldl')
 import Data.Monoid (Monoid(..))
 
@@ -60,11 +58,7 @@ data Pos = -- | Source file name, line, column, and character offset.
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
-#ifdef __GLASGOW_HASKELL__
   deriving (Eq, Read, Show, Data, Typeable)
-#else
-  deriving (Eq, Read, Show)
-#endif
 
 instance Ord Pos where
     compare (Pos f1 l1 c1 _) (Pos f2 l2 c2 _) =
@@ -122,11 +116,7 @@ data Loc =  NoLoc
          |  -- | Beginning and end positions
             Loc  {-# UNPACK #-} !Pos
                  {-# UNPACK #-} !Pos
-#ifdef __GLASGOW_HASKELL__
   deriving (Eq, Read, Show, Data, Typeable)
-#else
-  deriving (Eq, Read, Show)
-#endif
 
 -- | Starting position of the location.
 locStart :: Loc -> Loc
