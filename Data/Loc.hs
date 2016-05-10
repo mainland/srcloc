@@ -225,8 +225,8 @@ instance Located SrcLoc where
 class Relocatable a where
     reloc :: Loc -> a -> a
 
--- | A value of type @L a@ is a value of type @a@ with an associated 'Loc', but this location is ignored
--- when performing comparisons.
+-- | A value of type @L a@ is a value of type @a@ with an associated 'Loc', but
+-- this location is ignored when performing comparisons.
 data L a = L Loc a
   deriving (Functor, Data, Typeable)
 
