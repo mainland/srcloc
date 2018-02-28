@@ -50,6 +50,9 @@ import Data.Data (Data(..))
 import Data.Typeable (Typeable(..))
 import Data.List (foldl')
 import Data.Monoid (Monoid(..))
+#if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup (Semigroup(..))
+#endif
 
 -- | Position type.
 data Pos = -- | Source file name, line, column, and character offset.
@@ -130,12 +133,22 @@ locEnd :: Loc -> Loc
 locEnd  NoLoc      = NoLoc
 locEnd  (Loc _ p)  = Loc p p
 
+-- | Append two locations.
+locAppend :: Loc -> Loc -> Loc
+locAppend NoLoc       l           = l
+locAppend l           NoLoc       = l
+locAppend (Loc b1 e1) (Loc b2 e2) = Loc (min b1 b2) (max e1 e2)
+
+#if MIN_VERSION_base(4,9,0)
+instance Semigroup Loc where
+    (<>) = locAppend
+#endif
+
 instance Monoid Loc where
     mempty = NoLoc
-
-    NoLoc     `mappend` l         = l
-    l         `mappend` NoLoc     = l
-    Loc b1 e1 `mappend` Loc b2 e2 = Loc (min b1 b2) (max e1 e2)
+#if !(MIN_VERSION_base(4,11,0))
+    mappend = locAppend
+#endif
 
 -- | Merge the locations of two 'Located' values.
 (<-->) :: (Located a, Located b) => a -> b -> Loc
@@ -147,6 +160,11 @@ infixl 6 <-->
 -- to be compared modulo location information.
 newtype SrcLoc = SrcLoc Loc
   deriving (Monoid, Data, Typeable)
+
+#if MIN_VERSION_base(4,9,0)
+instance Semigroup SrcLoc where
+  SrcLoc l1 <> SrcLoc l2 = SrcLoc (l1 <> l2)
+#endif
 
 instance Eq SrcLoc where
     _ == _ = True
