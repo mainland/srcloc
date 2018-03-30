@@ -12,7 +12,8 @@ homepage:       https://github.com/mainland/srcloc
 category:       Data
 synopsis:       Data types for managing source code locations.
 description:    Data types for tracking, combining, and printing source code locations.
-tested-with:    GHC==7.4.2, GHC==7.6.3, GHC==7.8.3, GHC==7.10.3, GHC==8.0.2, GHC==8.2.1
+tested-with:    GHC==7.4.2, GHC==7.6.3, GHC==7.8.3, GHC==7.10.3, GHC==8.0.2,
+                GHC==8.2.1, GHC==8.4.1
 
 build-type:     Simple
 
