@@ -121,7 +121,7 @@ data Loc =  NoLoc
          |  -- | Beginning and end positions
             Loc  {-# UNPACK #-} !Pos
                  {-# UNPACK #-} !Pos
-  deriving (Eq, Read, Show, Data, Typeable)
+  deriving (Eq, Ord, Read, Show, Data, Typeable)
 
 -- | Starting position of the location.
 locStart :: Loc -> Loc
