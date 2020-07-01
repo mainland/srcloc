@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE Safe #-}
 
 -- |
 -- Module      :  Data.Loc
@@ -159,7 +159,13 @@ infixl 6 <-->
 -- | Source location type. Source location are all equal, which allows AST nodes
 -- to be compared modulo location information.
 newtype SrcLoc = SrcLoc Loc
-  deriving (Monoid, Data, Typeable)
+  deriving (Data, Typeable)
+
+instance Monoid SrcLoc where
+    mempty = SrcLoc mempty
+#if !(MIN_VERSION_base(4,11,0))
+    mappend (SrcLoc l1) (SrcLoc l2) = SrcLoc (l1 `mappend` l2)
+#endif
 
 #if MIN_VERSION_base(4,9,0)
 instance Semigroup SrcLoc where
