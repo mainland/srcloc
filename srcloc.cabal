@@ -1,6 +1,6 @@
 name:           srcloc
 version:        0.5.1.2
-cabal-version:  >= 1.6
+cabal-version:  >= 1.10
 license:        BSD3
 license-file:   LICENSE
 copyright:      (c) 2006-2011 Harvard University
@@ -18,6 +18,8 @@ tested-with:    GHC==7.4.2, GHC==7.6.3, GHC==7.8.3, GHC==7.10.3, GHC==8.0.2,
 build-type:     Simple
 
 library
+  default-language: Haskell2010
+
   exposed-modules:
     Data.Loc
 
