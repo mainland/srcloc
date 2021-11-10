@@ -264,7 +264,7 @@ instance Ord x => Ord (L x) where
     compare (L _ x) (L _ y) = compare x y
 
 instance Show x => Show (L x) where
-    show (L _ x) = show x
+    showsPrec d (L _ x) = showsPrec d x
 
 instance Located (L a) where
     locOf (L loc _) = loc
