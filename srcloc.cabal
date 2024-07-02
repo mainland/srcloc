@@ -4,7 +4,7 @@ cabal-version:  >= 1.10
 license:        BSD3
 license-file:   LICENSE
 copyright:      (c) 2006-2011 Harvard University
-                (c) 2011-2018 Geoffrey Mainland
+                (c) 2011-2024 Geoffrey Mainland
 author:         Geoffrey Mainland <mainland@drexel.edu>
 maintainer:     Geoffrey Mainland <mainland@drexel.edu>
 stability:      alpha
@@ -12,9 +12,18 @@ homepage:       https://github.com/mainland/srcloc
 category:       Data
 synopsis:       Data types for managing source code locations.
 description:    Data types for tracking, combining, and printing source code locations.
-tested-with:    GHC==7.4.2, GHC==7.6.3, GHC==7.8.4, GHC==7.10.3, GHC==8.0.2,
-                GHC==8.2.2, GHC==8.4.3, GHC==8.6.5, GHC==8.8.4, GHC==8.10.7
-                GHC==9.0.2, GHC==9.2.2
+tested-with:    GHC==8.0.2,
+                GHC==8.2.2,
+                GHC==8.4.3,
+                GHC==8.6.5,
+                GHC==8.8.4,
+                GHC==8.10.7,
+                GHC==9.0.2,
+                GHC==9.2.2,
+                GHC==9.4.8,
+                GHC==9.6.4,
+                GHC==9.8.2,
+                GHC==9.10.1
 
 build-type:     Simple
 
