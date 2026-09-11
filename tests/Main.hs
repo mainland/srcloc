@@ -293,6 +293,18 @@ tests = testGroup "srcloc"
         , testCase "multi-line span" $
             displayLoc (Loc (Pos "input.hs" 2 3 (Just 10)) (Pos "input.hs" 4 5 (Just 40)))
                 @?= "input.hs:2:3-4:5"
+        , testCase "cross-file span with matching line and column" $
+            displayLoc (startPos "a.hs" <--> startPos "b.hs")
+                @?= "a.hs:1:1-b.hs:1:1"
+        , testCase "cross-file span with matching line" $
+            displayLoc (Loc (Pos "a.hs" 2 3 (Just 10)) (Pos "b.hs" 2 5 Nothing))
+                @?= "a.hs:2:3-b.hs:2:5"
+        , testCase "cross-file span with different lines" $
+            displayLoc (Loc (Pos "a.hs" 2 3 Nothing) (Pos "dir/b \x3bb.hs" 4 5 (Just 40)))
+                @?= "a.hs:2:3-dir/b \x3bb.hs:4:5"
+        , testCase "cross-file display preserves endpoint order" $
+            displayLoc (Loc (Pos "b.hs" 4 5 Nothing) (Pos "a.hs" 2 3 Nothing))
+                @?= "b.hs:4:5-a.hs:2:3"
         , testCase "filename contents are preserved" $
             displayPos (startPos "dir/a b\x3bb.hs") @?= "dir/a b\x3bb.hs:1:1"
         , testProperty "offsets do not affect position display" $
