@@ -3,16 +3,24 @@ module Main (main) where
 import           Control.Monad         (forM_)
 import           Data.Data             (gmapT)
 import qualified Data.List             as List
+import           Data.List.NonEmpty    (NonEmpty (..))
 import           Data.Loc
 import qualified Data.Semigroup        as Semigroup
+import           System.Environment    (getArgs, getExecutablePath)
+import           System.Exit           (ExitCode (ExitSuccess))
+import           System.Process        (readProcessWithExitCode)
 import           Test.Tasty            (TestTree, defaultMain, testGroup)
-import           Test.Tasty.HUnit      (Assertion, testCase, (@?=))
+import           Test.Tasty.HUnit      (Assertion, assertEqual, testCase, (@?=))
 import           Test.Tasty.QuickCheck (Arbitrary (..), UnicodeString (..),
                                         choose, frequency, testProperty)
 import           Text.Read             (readMaybe)
 
 main :: IO ()
-main = defaultMain tests
+main = do
+    args <- getArgs
+    case args of
+        ["--stress", mode] -> stressAggregation mode
+        _                  -> defaultMain tests
 
 tests :: TestTree
 tests = testGroup "srcloc"
@@ -147,6 +155,26 @@ tests = testGroup "srcloc"
         , testCase "idempotency for all tied endpoint offset combinations" $
             forM_ tiedSpans $ \l -> assertLoc (l `mappend` l) l
         ]
+    , testGroup "aggregation"
+        [ testProperty "mconcat preserves right-fold results including offsets" $
+            \samples ->
+                let locations = [l | SampleLoc l <- samples]
+                    expected = foldr mappend NoLoc locations
+                in sameLoc (mconcat locations) expected
+                    && sameLoc (locOf (mconcat (map SrcLoc locations))) expected
+        , testProperty "sconcat preserves right-fold results including offsets" $
+            \(SampleLoc first) samples ->
+                let locations = [l | SampleLoc l <- samples]
+                    expected = foldr mappend NoLoc (first : locations)
+                in sameLoc (Semigroup.sconcat (first :| locations)) expected
+                    && sameLoc (locOf (Semigroup.sconcat
+                        (SrcLoc first :| map SrcLoc locations))) expected
+        , testGroup "bounded stack"
+            [ testCase mode (checkAggregationStack mode)
+            | mode <- ["locOf", "locOfList", "mconcat-Loc", "mconcat-SrcLoc",
+                       "sconcat-Loc", "sconcat-SrcLoc"]
+            ]
+        ]
     , testGroup "conversion and Located instances"
         [ testProperty "Loc and SrcLoc conversions preserve offsets" $
             \(SampleLoc l) ->
@@ -276,6 +304,32 @@ tests = testGroup "srcloc"
             \(SampleLoc l) (UnicodeString suffix) -> displaySLoc l suffix == displayLoc l ++ suffix
         ]
     ]
+
+-- Run stress cases in a separate process so the stack limit applies regardless
+-- of the surrounding test runner, and a stack overflow becomes a test failure.
+checkAggregationStack :: String -> Assertion
+checkAggregationStack mode = do
+    executable <- getExecutablePath
+    (code, out, err) <- readProcessWithExitCode executable
+        ["--stress", mode, "+RTS", "-K8m", "-RTS"] ""
+    assertEqual (mode ++ " failed with an 8 MiB stack:\n" ++ out ++ err)
+        ExitSuccess code
+
+stressAggregation :: String -> Assertion
+stressAggregation mode = assertLoc actual (Loc (point 1) (point count))
+  where
+    count = 1000000
+    positions = map point [1..count]
+    actual = case mode of
+        "locOf" -> locOf positions
+        "locOfList" -> locOfList positions
+        "mconcat-Loc" -> mconcat (map locOf positions)
+        "mconcat-SrcLoc" -> locOf (mconcat (map srclocOf positions))
+        "sconcat-Loc" -> Semigroup.sconcat
+            (locOf (point 1) :| map (locOf . point) [2..count])
+        "sconcat-SrcLoc" -> locOf (Semigroup.sconcat
+            (srclocOf (point 1) :| map (srclocOf . point) [2..count]))
+        _ -> error ("Unknown stress case: " ++ mode)
 
 -- Inspect all fields explicitly because Eq ignores offsets (and SrcLoc ignores
 -- the entire location). Use these observations for preservation and merge laws.
