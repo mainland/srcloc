@@ -52,6 +52,17 @@
 -- with the number of locations. Evaluating individual values or comparing their
 -- filenames may have additional costs.
 --
+-- = Choosing a location wrapper
+--
+-- Use @Loc@ when comparisons should include source coordinates. Use @SrcLoc@
+-- when a larger structure should compare independently of its locations.
+-- All @SrcLoc@ values compare equal, and their @Show@ instance prints @noLoc@.
+-- Use 'locOf' to recover the stored location and 'displayLoc' to display it.
+--
+-- @L a@ attaches a location to a payload. Its equality, ordering, and @Show@
+-- instances use only the payload. 'fmap' changes the payload while preserving
+-- the location, and 'reloc' replaces the location while preserving the payload.
+--
 -- = Migrating from integer offsets
 --
 -- The offset field of @Pos@ and the result of 'posCoff' use @Maybe Int@.
@@ -107,6 +118,10 @@ import           Data.Semigroup     (Semigroup (..))
 -- Equality and ordering use only the file name, line, and column, in that
 -- order. The optional character offset is additional information and does not
 -- affect comparisons.
+--
+-- Filenames are compared lexicographically as supplied, without path
+-- normalization or filesystem access. The constructor does not validate
+-- coordinates or the relationship between coordinates and offsets.
 data Pos = -- | Source file name, line, column, and optional character offset.
            --
            -- Line numbering starts at 1, column offset starts at 1, and
@@ -191,6 +206,17 @@ advanceCoff (Just coff) = let next = coff + 1 in next `seq` Just next
 -- resulting offset information. An unknown offset at a tied endpoint remains
 -- unknown when combined with a known offset, so regrouping cannot restore
 -- information lost to a conflict.
+--
+-- Endpoints may belong to different files or appear in reverse order. They are
+-- not validated or reordered. Combination selects the minimum of the beginning
+-- positions and the maximum of the end positions using @Pos@ ordering,
+-- including its lexicographic filename comparison. Only for ordered endpoints
+-- does this describe the enclosing span. The library does not impose an
+-- inclusive or exclusive end-position convention.
+--
+-- Equality and ordering compare the beginning and then the end. 'NoLoc' sorts
+-- before every concrete span. Unlike @SrcLoc@, the derived @Read@ and @Show@
+-- instances preserve the endpoints and their offsets.
 data Loc =  NoLoc
          |  -- | Beginning and end positions
             Loc  {-# UNPACK #-} !Pos
@@ -198,11 +224,13 @@ data Loc =  NoLoc
   deriving (Eq, Ord, Read, Show, Data)
 
 -- | Starting position of the location.
+-- Returns a point span at the beginning, or 'NoLoc' for an absent location.
 locStart :: Loc -> Loc
 locStart  NoLoc     = NoLoc
 locStart  (Loc p _) = Loc p p
 
 -- | Ending position of the location.
+-- Returns a point span at the end, or 'NoLoc' for an absent location.
 locEnd :: Loc -> Loc
 locEnd  NoLoc     = NoLoc
 locEnd  (Loc _ p) = Loc p p
@@ -248,8 +276,18 @@ x <--> y = locOf x `mappend` locOf y
 
 infixl 6 <-->
 
--- | Source location type. Source location are all equal, which allows AST nodes
--- to be compared modulo location information.
+-- | A location wrapper whose equality and ordering ignore the stored location.
+-- This allows AST nodes to be compared modulo location information.
+--
+-- Every value compares equal. @Show@ always prints @noLoc@, and reading that
+-- text produces @SrcLoc NoLoc@. Consequently a @Show@/@Read@ round trip loses
+-- the stored location. @Read@ also accepts explicit constructor syntax such as
+-- @SrcLoc (Loc (Pos "a.hs" 1 1 (Just 0)) (Pos "a.hs" 1 2 Nothing))@,
+-- which preserves the supplied endpoints and offsets.
+--
+-- 'locOf' retrieves the stored location. The monoid and semigroup instances
+-- combine the underlying spans using the rules for @Loc@. Their results can
+-- retain different location information even though they compare equal.
 newtype SrcLoc = SrcLoc Loc
   deriving (Data)
 
@@ -292,15 +330,17 @@ instance Read SrcLoc where
 srclocOf :: Located a => a -> SrcLoc
 srclocOf = fromLoc . locOf
 
--- | A @SrcLoc@ with (minimal) span that includes two 'Located' values.
+-- | Merge two 'Located' values as with '<-->', wrapping the result in @SrcLoc@.
 srcspan :: (Located a, Located b) => a -> b -> SrcLoc
 x `srcspan` y = SrcLoc (locOf x `mappend` locOf y)
 
 infixl 6 `srcspan`
 
--- | Locations
+-- | Types that can represent a location.
 class IsLocation a where
+    -- | Convert a span to this representation.
     fromLoc :: Loc -> a
+    -- | Convert a position. The default uses a point span at that position.
     fromPos :: Pos -> a
     fromPos p = fromLoc (Loc p p)
 
@@ -310,12 +350,13 @@ instance IsLocation Loc where
 instance IsLocation SrcLoc where
     fromLoc = SrcLoc
 
--- | No location.
+-- | An absent location, obtained by converting 'NoLoc' with 'fromLoc'.
 noLoc :: IsLocation a => a
 noLoc = fromLoc NoLoc
 
 -- | Located values have a location.
 class Located a where
+    -- | Retrieve the location, using 'NoLoc' when no location is available.
     locOf :: a -> Loc
 
     -- | Combine the locations of a finite list. The default implementation
@@ -341,12 +382,19 @@ instance Located Loc where
 instance Located SrcLoc where
     locOf (SrcLoc loc) = loc
 
--- | Values that can be relocated
+-- | Values whose associated location can be replaced.
 class Relocatable a where
+    -- | Replace the associated location with the supplied span.
     reloc :: Loc -> a -> a
 
--- | A value of type @L a@ is a value of type @a@ with an associated @Loc@, but
--- this location is ignored when performing comparisons.
+-- | A payload with an associated @Loc@. Equality, ordering, and @Show@ use only
+-- the payload. @Show@ delegates to the payload's @showsPrec@, so it preserves
+-- precedence in enclosing expressions and omits both the wrapper and location.
+--
+-- The @Functor@ instance changes the payload without changing the location.
+-- 'reloc' replaces the location without changing the payload. Both fields are
+-- lazy: payload operations do not evaluate the location, and retrieving the
+-- location does not evaluate the payload.
 data L a = L Loc a
   deriving (Functor, Data)
 
