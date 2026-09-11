@@ -38,4 +38,4 @@ library
 
 source-repository head
   type:     git
-  location: git://github.com/mainland/srcloc.git
+  location: https://github.com/mainland/srcloc.git
