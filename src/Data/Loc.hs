@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE Safe               #-}
 
 -- |
 -- Module      :  Data.Loc
@@ -46,12 +46,12 @@ module Data.Loc (
     unLoc
   ) where
 
-import Data.Data (Data(..))
-import Data.Typeable (Typeable(..))
-import Data.List (foldl')
-import Data.Monoid (Monoid(..))
+import           Data.Data      (Data (..))
+import           Data.List      (foldl')
+import           Data.Monoid    (Monoid (..))
+import           Data.Typeable  (Typeable (..))
 #if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup (Semigroup(..))
+import           Data.Semigroup (Semigroup (..))
 #endif
 
 -- | Position type.
@@ -125,13 +125,13 @@ data Loc =  NoLoc
 
 -- | Starting position of the location.
 locStart :: Loc -> Loc
-locStart  NoLoc      = NoLoc
-locStart  (Loc p _)  = Loc p p
+locStart  NoLoc     = NoLoc
+locStart  (Loc p _) = Loc p p
 
 -- | Ending position of the location.
 locEnd :: Loc -> Loc
-locEnd  NoLoc      = NoLoc
-locEnd  (Loc _ p)  = Loc p p
+locEnd  NoLoc     = NoLoc
+locEnd  (Loc _ p) = Loc p p
 
 -- | Append two locations.
 locAppend :: Loc -> Loc -> Loc
@@ -233,8 +233,8 @@ instance Located a => Located [a] where
     locOf = locOfList
 
 instance Located a => Located (Maybe a) where
-    locOf Nothing   = NoLoc
-    locOf (Just x)  = locOf x
+    locOf Nothing  = NoLoc
+    locOf (Just x) = locOf x
 
 instance Located Pos where
     locOf p = Loc p p
