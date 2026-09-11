@@ -387,15 +387,25 @@ displaySPos p = displaySLoc (Loc p p)
 
 -- | Format a location in a human-readable way, returning an ordinary
 -- 'String'.
+--
+-- Same-file spans omit repeated filename and line information:
+-- @input.hs:2:3@, @input.hs:2:3-5@, or @input.hs:2:3-4:5@.
+-- Cross-file spans show both complete endpoints, as in @a.hs:2:3-b.hs:4:5@,
+-- even when their line and column numbers match. Endpoints are displayed in
+-- their stored order. Filenames are emitted verbatim and offsets are omitted.
+-- 'NoLoc' is displayed as @<no location>@.
 displayLoc :: Loc -> String
 displayLoc loc = displaySLoc loc ""
 
--- | Format a location in a human-readable way.
+-- | Format a location as described by 'displayLoc', prepending the result to
+-- the supplied suffix.
 displaySLoc :: Loc -> ShowS
 displaySLoc NoLoc =
     showString "<no location>"
 
-displaySLoc (Loc p1@(Pos src line1 col1 _) (Pos _ line2 col2 _))
+displaySLoc (Loc p1@(Pos src line1 col1 _) p2@(Pos src2 line2 col2 _))
+  | src /= src2 =
+      displaySPos p1 . dash . displaySPos p2
   | (line1, col1) == (line2, col2) =
       -- filename.txt:2:3
       showString src . colon . shows line1 . colon . shows col1
