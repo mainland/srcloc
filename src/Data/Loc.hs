@@ -98,13 +98,9 @@ module Data.Loc (
   ) where
 
 import           Data.Data          (Data (..))
-import           Data.List          (foldl')
-import           Data.Monoid        (Monoid (..))
-import           Data.Typeable      (Typeable (..))
-#if MIN_VERSION_base(4,9,0)
+import qualified Data.List          as List
 import           Data.List.NonEmpty (NonEmpty (..))
 import           Data.Semigroup     (Semigroup (..))
-#endif
 
 -- | Position type.
 --
@@ -120,7 +116,7 @@ data Pos = -- | Source file name, line, column, and optional character offset.
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
                !(Maybe Int)
-  deriving (Read, Show, Data, Typeable)
+  deriving (Read, Show, Data)
 
 instance Eq Pos where
     Pos f1 l1 c1 _ == Pos f2 l2 c2 _ =
@@ -199,7 +195,7 @@ data Loc =  NoLoc
          |  -- | Beginning and end positions
             Loc  {-# UNPACK #-} !Pos
                  {-# UNPACK #-} !Pos
-  deriving (Eq, Ord, Read, Show, Data, Typeable)
+  deriving (Eq, Ord, Read, Show, Data)
 
 -- | Starting position of the location.
 locStart :: Loc -> Loc
@@ -235,15 +231,13 @@ mergePosOffsets :: Pos -> Pos -> Pos
 mergePosOffsets (Pos f l c o1) (Pos _ _ _ o2) =
     Pos f l c (if o1 == o2 then o1 else Nothing)
 
-#if MIN_VERSION_base(4,9,0)
 instance Semigroup Loc where
     (<>) = locAppend
-    sconcat (l :| ls) = foldl' locAppend l ls
-#endif
+    sconcat (l :| ls) = List.foldl' locAppend l ls
 
 instance Monoid Loc where
     mempty = NoLoc
-    mconcat = foldl' locAppend NoLoc
+    mconcat = List.foldl' locAppend NoLoc
 #if !(MIN_VERSION_base(4,11,0))
     mappend = locAppend
 #endif
@@ -257,20 +251,18 @@ infixl 6 <-->
 -- | Source location type. Source location are all equal, which allows AST nodes
 -- to be compared modulo location information.
 newtype SrcLoc = SrcLoc Loc
-  deriving (Data, Typeable)
+  deriving (Data)
 
 instance Monoid SrcLoc where
     mempty = SrcLoc mempty
-    mconcat = foldl' mappend mempty
+    mconcat = List.foldl' mappend mempty
 #if !(MIN_VERSION_base(4,11,0))
     mappend (SrcLoc l1) (SrcLoc l2) = SrcLoc (l1 `mappend` l2)
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 instance Semigroup SrcLoc where
   SrcLoc l1 <> SrcLoc l2 = SrcLoc (l1 <> l2)
-  sconcat (l :| ls) = foldl' (<>) l ls
-#endif
+  sconcat (l :| ls) = List.foldl' (<>) l ls
 
 instance Eq SrcLoc where
     _ == _ = True
@@ -282,25 +274,25 @@ instance Show SrcLoc where
     showsPrec _ _ = showString "noLoc"
 
 instance Read SrcLoc where
-    readsPrec p s =
+    readsPrec p input =
         readParen False
           (\s -> [(SrcLoc NoLoc, s') |
                   ("noLoc", s') <- lex s])
-          s
+          input
         ++
         readParen (p > app_prec)
           (\s -> [(SrcLoc l, s'') |
                   ("SrcLoc", s') <- lex s,
                   (l, s'') <- readsPrec (app_prec+1) s'])
-          s
+          input
       where
         app_prec = 10
 
--- | The 'SrcLoc' of a 'Located' value.
+-- | The @SrcLoc@ of a 'Located' value.
 srclocOf :: Located a => a -> SrcLoc
 srclocOf = fromLoc . locOf
 
--- | A 'SrcLoc' with (minimal) span that includes two 'Located' values.
+-- | A @SrcLoc@ with (minimal) span that includes two 'Located' values.
 srcspan :: (Located a, Located b) => a -> b -> SrcLoc
 x `srcspan` y = SrcLoc (locOf x `mappend` locOf y)
 
@@ -353,11 +345,12 @@ instance Located SrcLoc where
 class Relocatable a where
     reloc :: Loc -> a -> a
 
--- | A value of type @L a@ is a value of type @a@ with an associated 'Loc', but
+-- | A value of type @L a@ is a value of type @a@ with an associated @Loc@, but
 -- this location is ignored when performing comparisons.
 data L a = L Loc a
-  deriving (Functor, Data, Typeable)
+  deriving (Functor, Data)
 
+-- | Extract the value, discarding its location.
 unLoc :: L a -> a
 unLoc (L _ a) = a
 
