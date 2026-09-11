@@ -9,6 +9,52 @@
 --                (c) Geoffrey Mainland 2011-2015
 -- License     :  BSD-style
 -- Maintainer  :  Geoffrey Mainland <mainland@cs.drexel.edu>
+--
+-- Source positions and spans, with optional character offsets.
+--
+-- = Positions and offsets
+--
+-- @Pos@ stores a filename, a line and column starting at 1, and an optional
+-- character offset starting at 0. @Just n@ means the offset is known.
+-- @Nothing@ means it is unknown. Offsets count characters, including tabs and
+-- newlines, rather than bytes.
+--
+-- 'startPos' supplies @Just 0@. 'linePos' supplies @Nothing@ because it has no
+-- information about preceding line lengths. 'advancePos' increments known
+-- offsets and preserves unknown offsets. Tabs use stops of width 8 and newlines
+-- follow UNIX conventions.
+--
+-- Position equality and ordering compare the filename, line, and column.
+-- Offsets do not affect comparisons. Inspect 'posCoff' explicitly when offset
+-- information matters.
+--
+-- = Combining locations
+--
+-- Location combination takes the earliest beginning and latest end. Endpoints
+-- with different coordinates retain the selected position's offset. For
+-- endpoints with matching filename, line, and column:
+--
+-- * Two identical known offsets combine to that known offset.
+-- * Conflicting known offsets combine to @Nothing@.
+-- * An unknown offset combined with any offset produces @Nothing@.
+--
+-- Combination is associative, commutative, and idempotent, including offset
+-- information. Grouping and input order do not change the result. Combining a
+-- span with itself preserves all its fields. An unknown offset remains unknown
+-- when combined with a known offset at the same coordinates, so an offset lost
+-- to a conflict cannot be restored by regrouping. 'NoLoc' is the identity.
+--
+-- These rules apply to the @Loc@ and @SrcLoc@ monoid and semigroup instances,
+-- '<-->', 'srcspan', and the default aggregation of located lists.
+--
+-- = Migrating from integer offsets
+--
+-- The offset field of @Pos@ and the result of 'posCoff' use @Maybe Int@.
+-- Code written for the former @Int@ API should wrap known offsets in @Just@
+-- and use @Nothing@ for unknown offsets. Code reading offsets must handle both
+-- cases. The @Read@, @Show@, and generic @Data@ representations also change.
+-- Position equality now ignores offsets, and merging tied endpoints may discard
+-- offset information when it is unknown or conflicting.
 
 module Data.Loc (
     Pos(..),
@@ -55,15 +101,24 @@ import           Data.Semigroup (Semigroup (..))
 #endif
 
 -- | Position type.
-data Pos = -- | Source file name, line, column, and character offset.
+--
+-- Equality and ordering use only the file name, line, and column, in that
+-- order. The optional character offset is additional information and does not
+-- affect comparisons.
+data Pos = -- | Source file name, line, column, and optional character offset.
            --
            -- Line numbering starts at 1, column offset starts at 1, and
-           -- character offset starts at 0.
+           -- known character offsets start at 0. 'Nothing' denotes an unknown
+           -- offset.
            Pos !FilePath
                {-# UNPACK #-} !Int
                {-# UNPACK #-} !Int
-               {-# UNPACK #-} !Int
-  deriving (Eq, Read, Show, Data, Typeable)
+               !(Maybe Int)
+  deriving (Read, Show, Data, Typeable)
+
+instance Eq Pos where
+    Pos f1 l1 c1 _ == Pos f2 l2 c2 _ =
+        (f1, l1, c1) == (f2, l2, c2)
 
 instance Ord Pos where
     compare (Pos f1 l1 c1 _) (Pos f2 l2 c2 _) =
@@ -81,11 +136,11 @@ posLine (Pos _ l _ _) = l
 posCol :: Pos -> Int
 posCol (Pos _ _ c _) = c
 
--- | Position character offset.
-posCoff :: Pos -> Int
+-- | Position character offset, or 'Nothing' when unknown.
+posCoff :: Pos -> Maybe Int
 posCoff (Pos _ _ _ coff) = coff
 
--- | Starting position for given file.
+-- | Starting position for given file, with known character offset 0.
 startPos :: FilePath -> Pos
 startPos f = Pos f startLine startCol startCoff
 
@@ -95,28 +150,45 @@ startLine = 1
 startCol :: Int
 startCol = 1
 
-startCoff :: Int
-startCoff = 0
+startCoff :: Maybe Int
+startCoff = Just 0
 
 -- | Position corresponding to given file and line.
 --
--- Note that the associated character offset is set to 0.
+-- The character offset is unknown because preceding line lengths are not given.
 linePos :: FilePath -> Int -> Pos
-linePos f l = Pos f l startCol startCoff
+linePos f l = Pos f l startCol Nothing
 
 -- | Advance a position by a single character. Newlines increment the line
 -- number, tabs increase the position column following a tab stop width of 8,
 -- and all other characters increase the position column by one. All characters,
--- including newlines and tabs, increase the character offset by 1.
+-- including newlines and tabs, increase a known character offset by 1. Unknown
+-- offsets remain unknown.
 --
 -- Note that 'advancePos' assumes UNIX-style newlines.
 advancePos :: Pos -> Char -> Pos
-advancePos (Pos f l _ coff) '\n' = Pos f (l+1) startCol     (coff + 1)
-advancePos (Pos f l c coff) '\t' = Pos f l     nextTabStop  (coff + 1)
+advancePos (Pos f l _ coff) '\n' = Pos f (l+1) startCol     (advanceCoff coff)
+advancePos (Pos f l c coff) '\t' = Pos f l     nextTabStop  (advanceCoff coff)
   where nextTabStop = ((c+7) `div` 8) * 8 + 1
-advancePos (Pos f l c coff) _    = Pos f l     (c + 1)      (coff + 1)
+advancePos (Pos f l c coff) _    = Pos f l     (c + 1)      (advanceCoff coff)
+
+-- Force known offsets so repeated advancement does not accumulate additions
+-- inside Just, even when only the position itself is evaluated.
+advanceCoff :: Maybe Int -> Maybe Int
+advanceCoff Nothing     = Nothing
+advanceCoff (Just coff) = let next = coff + 1 in next `seq` Just next
 
 -- | Location type, consisting of a beginning position and an end position.
+--
+-- Comparisons ignore character offsets, as for @Pos@. Combining locations takes
+-- the earliest beginning and latest end. When endpoint coordinates match, their
+-- offset is retained only if both offsets are known and equal. Otherwise the
+-- merged offset is unknown. 'NoLoc' is the identity for combination.
+--
+-- Combination is associative, commutative, and idempotent, including the
+-- resulting offset information. An unknown offset at a tied endpoint remains
+-- unknown when combined with a known offset, so regrouping cannot restore
+-- information lost to a conflict.
 data Loc =  NoLoc
          |  -- | Beginning and end positions
             Loc  {-# UNPACK #-} !Pos
@@ -137,7 +209,25 @@ locEnd  (Loc _ p) = Loc p p
 locAppend :: Loc -> Loc -> Loc
 locAppend NoLoc       l           = l
 locAppend l           NoLoc       = l
-locAppend (Loc b1 e1) (Loc b2 e2) = Loc (min b1 b2) (max e1 e2)
+locAppend (Loc b1 e1) (Loc b2 e2) = Loc (minPos b1 b2) (maxPos e1 e2)
+
+minPos :: Pos -> Pos -> Pos
+minPos p q = case compare p q of
+    LT -> p
+    EQ -> mergePosOffsets p q
+    GT -> q
+
+maxPos :: Pos -> Pos -> Pos
+maxPos p q = case compare p q of
+    LT -> q
+    EQ -> mergePosOffsets p q
+    GT -> p
+
+-- Called only for positions at the same source coordinates. Unknown offsets
+-- absorb known offsets so conflicts cannot be undone by later combinations.
+mergePosOffsets :: Pos -> Pos -> Pos
+mergePosOffsets (Pos f l c o1) (Pos _ _ _ o2) =
+    Pos f l c (if o1 == o2 then o1 else Nothing)
 
 #if MIN_VERSION_base(4,9,0)
 instance Semigroup Loc where
