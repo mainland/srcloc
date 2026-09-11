@@ -47,6 +47,11 @@
 -- These rules apply to the @Loc@ and @SrcLoc@ monoid and semigroup instances,
 -- '<-->', 'srcspan', and the default aggregation of located lists.
 --
+-- List aggregation through @mconcat@, @sconcat@, and the default 'locOfList'
+-- uses strict left folds. It consumes finite lists without stack usage growing
+-- with the number of locations. Evaluating individual values or comparing their
+-- filenames may have additional costs.
+--
 -- = Migrating from integer offsets
 --
 -- The offset field of @Pos@ and the result of 'posCoff' use @Maybe Int@.
@@ -92,12 +97,13 @@ module Data.Loc (
     unLoc
   ) where
 
-import           Data.Data      (Data (..))
-import           Data.List      (foldl')
-import           Data.Monoid    (Monoid (..))
-import           Data.Typeable  (Typeable (..))
-#if MIN_VERSION_base(4,9,0) && !(MIN_VERSION_base(4,11,0))
-import           Data.Semigroup (Semigroup (..))
+import           Data.Data          (Data (..))
+import           Data.List          (foldl')
+import           Data.Monoid        (Monoid (..))
+import           Data.Typeable      (Typeable (..))
+#if MIN_VERSION_base(4,9,0)
+import           Data.List.NonEmpty (NonEmpty (..))
+import           Data.Semigroup     (Semigroup (..))
 #endif
 
 -- | Position type.
@@ -232,10 +238,12 @@ mergePosOffsets (Pos f l c o1) (Pos _ _ _ o2) =
 #if MIN_VERSION_base(4,9,0)
 instance Semigroup Loc where
     (<>) = locAppend
+    sconcat (l :| ls) = foldl' locAppend l ls
 #endif
 
 instance Monoid Loc where
     mempty = NoLoc
+    mconcat = foldl' locAppend NoLoc
 #if !(MIN_VERSION_base(4,11,0))
     mappend = locAppend
 #endif
@@ -253,6 +261,7 @@ newtype SrcLoc = SrcLoc Loc
 
 instance Monoid SrcLoc where
     mempty = SrcLoc mempty
+    mconcat = foldl' mappend mempty
 #if !(MIN_VERSION_base(4,11,0))
     mappend (SrcLoc l1) (SrcLoc l2) = SrcLoc (l1 `mappend` l2)
 #endif
@@ -260,6 +269,7 @@ instance Monoid SrcLoc where
 #if MIN_VERSION_base(4,9,0)
 instance Semigroup SrcLoc where
   SrcLoc l1 <> SrcLoc l2 = SrcLoc (l1 <> l2)
+  sconcat (l :| ls) = foldl' (<>) l ls
 #endif
 
 instance Eq SrcLoc where
@@ -316,6 +326,10 @@ noLoc = fromLoc NoLoc
 class Located a where
     locOf :: a -> Loc
 
+    -- | Combine the locations of a finite list. The default implementation
+    -- uses a strict left fold through the @Loc@ monoid, retaining only the
+    -- accumulated span as it traverses the list. Instances may override this
+    -- method to customize how lists are located.
     locOfList :: [a] -> Loc
     locOfList xs = mconcat (map locOf xs)
 
