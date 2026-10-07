@@ -6,9 +6,9 @@
 -- |
 -- Module      :  Data.Loc
 -- Copyright   :  (c) Harvard University 2006-2011
---                (c) Geoffrey Mainland 2011-2015
+--                (c) Geoffrey Mainland 2011-2026
 -- License     :  BSD-style
--- Maintainer  :  Geoffrey Mainland <mainland@cs.drexel.edu>
+-- Maintainer  :  Geoffrey Mainland <mainland@drexel.edu>
 --
 -- Source positions and spans, with optional character offsets.
 --
