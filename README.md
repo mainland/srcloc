@@ -5,5 +5,5 @@ Data types for tracking, combining, and printing source code locations.
 See the
 [Data.Loc API documentation](https://hackage.haskell.org/package/srcloc/docs/Data-Loc.html)
 for position conventions, optional offsets, location combination, and
-migration from integer offsets. The documentation is maintained in
+upgrading from srcloc 0.6. The documentation is maintained in
 [src/Data/Loc.hs](https://github.com/mainland/srcloc/blob/main/src/Data/Loc.hs).

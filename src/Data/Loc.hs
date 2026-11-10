@@ -63,14 +63,65 @@
 -- instances use only the payload. 'fmap' changes the payload while preserving
 -- the location, and 'reloc' replaces the location while preserving the payload.
 --
--- = Migrating from integer offsets
+-- = Upgrading from srcloc 0.6
 --
--- The offset field of @Pos@ and the result of 'posCoff' use @Maybe Int@.
--- Code written for the former @Int@ API should wrap known offsets in @Just@
--- and use @Nothing@ for unknown offsets. Code reading offsets must handle both
--- cases. The @Read@, @Show@, and generic @Data@ representations also change.
--- Position equality now ignores offsets, and merging tied endpoints may discard
--- offset information when it is unknown or conflicting.
+-- Version 1.0 changes the type of character offsets from @Int@ to @Maybe Int@.
+-- Code that uses 'startPos', 'advancePos', 'posFile', 'posLine', 'posCol', and
+-- the location combinators without naming an offset needs no change. Code that
+-- constructs or matches @Pos@ with all four fields, or that calls 'posCoff',
+-- must handle @Maybe Int@. Wrap known offsets in @Just@ and use @Nothing@ for
+-- unknown offsets:
+--
+-- > -- srcloc 0.6
+-- > start = Pos file 1 1 0
+-- > back (Pos f l c o) = Pos f l (c - 1) (o - 1)
+-- >
+-- > -- srcloc 1.0
+-- > start = Pos file 1 1 (Just 0)
+-- > back (Pos f l c o) = Pos f l (c - 1) (subtract 1 <$> o)
+--
+-- 'startPos' supplies offset @Just 0@. Where code needs an @Int@, decide how to
+-- treat an unknown offset, for example with @fromMaybe 0 ('posCoff' p)@ or by
+-- reporting an error.
+--
+-- To build with both versions, select the offset representation with the
+-- @MIN_VERSION_srcloc@ macro that Cabal defines for dependent packages:
+--
+-- @
+-- {-\# LANGUAGE CPP \#-}
+-- mkPos :: FilePath -> Int -> Int -> Int -> Pos
+-- \#if MIN\_VERSION\_srcloc(1,0,0)
+-- mkPos f l c o = Pos f l c (Just o)
+-- \#else
+-- mkPos f l c o = Pos f l c o
+-- \#endif
+-- @
+--
+-- After updating, require @srcloc >= 1.0 && < 1.1@, or raise an existing upper
+-- bound to @< 1.1@ when the code supports both versions. Until a package is
+-- updated, give it the upper bound @srcloc < 1.0@.
+--
+-- Version 1.0 also changes behavior in code that compiles unchanged:
+--
+-- * Position equality ignores offsets, consistent with ordering. Compare
+--   'posCoff' explicitly when offsets matter.
+--
+-- * 'linePos' produces an unknown offset instead of @0@, because the lengths
+--   of preceding lines are unknown.
+--
+-- * Combining locations whose endpoints have the same filename, line, and
+--   column keeps an offset only when both offsets are known and equal.
+--
+-- * The @Read@, @Show@, and generic @Data@ representations of @Pos@ change,
+--   including positions nested in other types. Update stored text and generic
+--   traversals that depend on the old representation.
+--
+-- * 'displayLoc' shows both complete endpoints for a span whose endpoints are
+--   in different files. Version 0.6 omitted the second filename.
+--
+-- * @Pos@ stores its offset as @Maybe Int@, which GHC cannot unpack into the
+--   constructor as it did the @Int@ offset in version 0.6. Advancing a position
+--   with a known offset therefore allocates a new @Just@ value.
 
 module Data.Loc (
     Pos(..),
