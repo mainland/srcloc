@@ -7,3 +7,10 @@ See the
 for position conventions, optional offsets, location combination, and
 upgrading from srcloc 0.6. The documentation is maintained in
 [src/Data/Loc.hs](https://github.com/mainland/srcloc/blob/main/src/Data/Loc.hs).
+
+## AI assistance
+
+All contributions included in releases through version `0.6.0.1` were made
+without AI assistance. AI tools were used in development, review, and release
+preparation after that version, through version `1.0.0`. The maintainer remains
+responsible for this release.
